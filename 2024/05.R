@@ -3,8 +3,6 @@ full_input = readLines('input-data/05')
 library(data.table)
 midpoint = \(x) x[length(x)/2+1L]
 
-# PART ONE
-
 # Build keyed before|after table of rules
 rules = full_input |>
   grep("[0-9]+[|][0-9]+", x=_, value=TRUE) |>
@@ -25,6 +23,9 @@ get_violations = function(update) {
   # right join --> NA implies "no match" i.e. "no violation"
   as.integer(na.omit(rules[.(pairs[2L, ], pairs[1L, ]), which=TRUE]))
 }
+
+# PART ONE
+
 violation_idx = sapply(updates, get_violations)
 is_right_order = lengths(violation_idx) == 0L
 sum(as.integer(sapply(updates[is_right_order], midpoint)))
