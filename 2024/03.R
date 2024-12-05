@@ -38,7 +38,9 @@ input |>
 ## PART TWO
 
 toggle_idx = gregexpr("(?:do|don't)\\(\\)", input)[[1L]]
-enabled = c(4L, attr(toggle_idx, "match.length"))[findInterval(mul_idx, c(0L, toggle_idx))] == 4L
+is_do = c(TRUE, attr(toggle_idx, "match.length") == 4L)
+recent_toggle = findInterval(mul_idx, c(0L, toggle_idx))
+enabled = is_do[recent_toggle]
 input |>
   substring(
     mul_idx[enabled],
