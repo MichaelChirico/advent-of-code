@@ -1,12 +1,14 @@
 input = do.call(rbind, strsplit(readLines('input-data/04'), NULL))
 
-horiz = apply(input, 1L, paste, collapse="")
-vert  = apply(input, 2L, paste, collapse="")
+DIM = dim(input)
 
 ## PART ONE
 
+horiz = apply(input, 1L, paste, collapse="")
+vert  = apply(input, 2L, paste, collapse="")
+
 # my input is square but let's make it work for rectangles
-max_dim = max(dim(input))
+max_dim = max(DIM)
 diag_back = sapply(
   (-max_dim):max_dim, # probably could do max_dim-1, no difference
   \(k) paste(input[row(input) - col(input) == k], collapse="")
@@ -26,30 +28,26 @@ length(Filter(\(x) x>0, c(unlist(match_fwd), unlist(match_bkd))))
 
 ## PART TWO
 
-a_idx = gregexpr("A", horiz, fixed=TRUE)
-hat_pairs = c(
-  M.M = "S.S",
-  M.S = "M.S",
-  S.M = "S.M",
-  S.S = "M.M"
-)
-hat_idx = lapply(
-  hat_pairs,
-  \(x) gregexpr(gsub("(.)$", "(?=\\1)", x), horiz, perl=TRUE)
-)
-names(hat_idx) = hat_pairs
+a_idx = input == "A" |>
+  which(arr.ind = TRUE) |>
+  data.frame() |>
+  subset(row > 1L & row < DIM[1L] & col > 1L & col < DIM[2L])
 
-total_matched = 0L
-for (row in 2:(length(a_idx) - 1L)) {
-  a_col = a_idx[[row]]
-  if (length(a_col) == 1L && a_col<0L) next
-  for (hat_pair in hat_pairs) {
-    hat_col_prev = hat_idx[[hat_pair]][[row - 1L]]
-    matched_prev = (a_col - 1L) %in% hat_col_prev
-    if (!any(matched_prev)) next
-    hat_col_next = hat_idx[[hat_pairs[[hat_pair]]]][[row + 1L]]
-    matched_next = (a_col - 1L) %in% hat_col_next
-    cat(sprintf("a columns matched for %s:%s: %s\n", hat_pair, hat_pairs[[hat_pair]], toString(a_col[matched_prev & matched_next])))
-    total_matched = total_matched + sum(matched_prev & matched_next)
-  }
-}
+all_corners = expand.grid(
+  idx = seq_len(nrow(a_idx)),
+  x_offset = c(-1L, 1L),
+  y_offset = c(-1L, 1L)
+) |>
+  sort_by(~idx + x_coord + y_coord) |>
+  within({
+    x_coord = a_idx$row[idx] + x_offset
+    y_coord = a_idx$col[idx] + y_offset
+    entry = input[cbind(x_coord, y_coord)]
+  })
+# Z-curve from top-left
+valid_ptn = strsplit(c("MSMS", "MMSS", "SSMM", "SMSM"), NULL)
+sum(tapply(
+  all_corners$entry,
+  all_corners$idx,
+  \(corners) Reduce(`||`, lapply(valid_ptn, \(ptn) all(corners == ptn)))
+))
