@@ -34,3 +34,16 @@ input |>
   paste(collapse = "+") |>
   parse(text = _, keep.source = FALSE) |>
   eval()
+
+## PART TWO
+
+toggle_idx = gregexpr("(?:do|don't)\\(\\)", input)[[1L]]
+enabled = c(4L, attr(toggle_idx, "match.length"))[findInterval(mul_idx, c(0L, toggle_idx))] == 4L
+input |>
+  substring(
+    mul_idx[enabled],
+    mul_idx[enabled]+attr(mul_idx, "match.length")[enabled]-1L
+  ) |>
+  paste(collapse = "+") |>
+  parse(text = _, keep.source = FALSE) |>
+  eval()
