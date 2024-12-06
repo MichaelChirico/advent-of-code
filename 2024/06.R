@@ -89,3 +89,5 @@ for (proposal_idx in seq_len(nrow(block_proposals))) {
     dir = (dir+1L) %% 4L
   }
 }
+
+loop_blocks
