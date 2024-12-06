@@ -56,8 +56,9 @@ loop_blocks = 0L
 # only possible places for a new obstacle must come where steps originally fell
 for (ii in seq_len((4L-dir)%%4L)) steps=rot(steps) # get back to 'input' orientation
 block_proposals = which(steps, arr.ind=TRUE)
+pb = txtProgressBar(max = nrow(block_proposals))
 for (proposal_idx in seq_len(nrow(block_proposals))) {
-  message(proposal_idx)
+  setTxtProgressBar(pb, proposal_idx)
   walls = walls0
   walls[block_proposals[proposal_idx, , drop=FALSE]] = TRUE # add the proposed wall
   # record the direction of each step
@@ -89,5 +90,6 @@ for (proposal_idx in seq_len(nrow(block_proposals))) {
     dir = (dir+1L) %% 4L
   }
 }
+close(pb)
 
 loop_blocks
