@@ -36,6 +36,9 @@ for (ii in seq_along(input)) {
 
   for (kk in rhs) {
     outputs = c(sapply(ops, \(f) f(outputs, kk)))
+    # drop any that are already infeasible (since
+    #   all ops are such that f(x,y)>=x) to save
+    #   space & computation.
     outputs = outputs[outputs <= lhs]
     if (!length(outputs)) break
   }
