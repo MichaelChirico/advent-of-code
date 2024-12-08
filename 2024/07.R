@@ -1,32 +1,51 @@
 input = 'input-data/07' |>
   readLines() |>
-  strsplit(":?\\s+")
+  strsplit(":?\\s+") |>
+  lapply(as.numeric)
 
+## PART ONE
+
+ops = list(`*`, `+`)
 total = 0
+pb = txtProgressBar(max=length(input))
 for (ii in seq_along(input)) {
+  setTxtProgressBar(pb, ii)
   lhs = input[[ii]][1L]
 
-  rhs = input[[ii]][-1L]
-  n_rhs = length(rhs)
-  exprs = replicate(n_rhs-1L, c("*", "+"), simplify=FALSE) |>
-    do.call(what = expand.grid) |>
-    cbind(rbind(paste0(rhs, ")"))) # append ')' to get L-to-R grouping correctly
-  # weave the operands into the right order
-  ways_feasible = exprs[c(rbind(
-    seq(n_rhs, length.out=n_rhs),
-    c(seq_len(n_rhs-1L), 0L)
-  ))] |>
-    # construct the element-wise expressions like ((10)*19);
-    #   evaluate whether it's "feasible" by wrapping in identical().
-    #   NB 'isTRUE(all.equal())' _gives the wrong answer!_
-    cbind(
-      ..1 = paste0("identical(", lhs, ",", strrep("(", n_rhs)),
-      ..2 = _,
-      ..3 = ")"
-    ) |>
-    apply(MARGIN = 1L, paste, collapse = "") |>
-    paste(collapse = "+") |>
-    parse(text = _ ) |>
-    eval()
-  if (ways_feasible) total = total+as.numeric(lhs)
+  outputs = input[[ii]][2L]
+  rhs = tail(input[[ii]], -2L)
+
+  for (kk in rhs) {
+    outputs = c(sapply(ops, \(f) f(outputs, kk)))
+    outputs = outputs[outputs <= lhs]
+    if (!length(outputs)) break
+  }
+  if (any(outputs == lhs)) total = total+lhs
 }
+close(pb)
+cat(sprintf("%20.f\n", total))
+
+## PART TWO
+
+# +.01 needed for exact powers of 10
+`%||%` = function(x, y) 10^ceiling(log10(y+.01))*x + y
+ops = list(`*`, `+`, `%||%`)
+total = 0
+pb = txtProgressBar(max=length(input))
+for (ii in seq_along(input)) {
+  setTxtProgressBar(pb, ii)
+  lhs = input[[ii]][1L]
+
+  outputs = input[[ii]][2L]
+  rhs = tail(input[[ii]], -2L)
+
+  for (kk in rhs) {
+    outputs = c(sapply(ops, \(f) f(outputs, kk)))
+    outputs = outputs[outputs <= lhs]
+    if (!length(outputs)) break
+  }
+  if (any(outputs == lhs)) total = total+lhs
+}
+close(pb)
+
+cat(sprintf("%20.f\n", total))
