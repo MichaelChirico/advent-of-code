@@ -59,18 +59,20 @@ input[, offset := 0L]
 
 move_block_idx = nrow(input)
 
-while (move_block_idx >= 1L) {
+# could probably terminate earlier but shrugs
+# NB: Really subtle in instructions, but this is the correct iteration
+for (move_block_idx in nrow(input):1) {
   n_move = input$filled_blocks[move_block_idx]
   fits = which(head(input$gap_size, move_block_idx-1L) >= n_move)
   if (length(fits)) {
     # wipe old data
     dense_file_id[input$left_idx[move_block_idx] + seq_len(n_move) - 1L] = NA_integer_
     # write moved data
-    dense_file_id[input[fits[1L], left_idx + filled_blocks + offset + seq_len(n_move) - 1L]] = move_block_idx - 1L
+    target_idx = input[fits[1L], left_idx + filled_blocks + offset + seq_len(n_move) - 1L]
+    dense_file_id[target_idx] = move_block_idx - 1L
+    # update info about remaining gaps
     input[fits[1L], `:=`(gap_size = gap_size - n_move, offset = offset + n_move)]
-    fits = which(head(input$gap_size, move_block_idx-1L) >= n_move)
   }
-  move_block_idx = move_block_idx - 1L
 }
 
 sprintf("%20.0f", sum(dense_file_id * (seq_along(dense_file_id) - 1L), na.rm=TRUE))
