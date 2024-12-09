@@ -1,25 +1,38 @@
-input = readLines('input-data/09') |>
-  strsplit(NULL) |>
-  unlist() |>
-  as.integer() |>
-  c(0) |>
-  matrix(nrow = 2L) |>
-  t() |>
-  data.frame() |>
-  setNames(c("filled_blocks", "empty_blocks"))
-input$left_idx = c(1L, with(input, cumsum(head(filled_blocks, -1L) + head(empty_blocks, -1L)) + 1L))
-n_blocks = nrow(input)
+library(data.table)
 
-dense_file_id = rep(NA_integer_, n_blocks)
-dense_file_id[unlist(mapply(\(x, y) seq(x, length.out=y), input$left_idx, input$filled_blocks))] =
-  rep(seq_len(n_blocks) - 1L, input$filled_blocks)
+build_input = function(f, str=NULL) {
+  l = str %||% readLines('input-data/09')
+  res = l |>
+    strsplit(NULL) |>
+    unlist() |>
+    as.integer() |>
+    c(0L) |>
+    matrix(nrow = 2L) |>
+    t() |>
+    data.table() |>
+    setnames(c("filled_blocks", "empty_blocks"))
+  res[, left_idx := 1L + cumsum(shift(filled_blocks, fill=0L) + shift(empty_blocks, fill=0L))]
+  res[]
+}
+initialize_dense_file = function(input) {
+  n_blocks = nrow(input)
+  dense_file_id = rep(NA_integer_, n_blocks)
+  dense_file_id[unlist(mapply(\(x, y) seq(x, length.out=y), input$left_idx, input$filled_blocks))] =
+    rep(seq_len(n_blocks) - 1L, input$filled_blocks)
+  dense_file_id
+}
+
+## PART ONE
+
+input = build_input()
+dense_file_id = initialize_dense_file(input)
 
 no_data = which(is.na(dense_file_id))
 fill_offset = 0L
 
 move_idx = length(dense_file_id)
 target_idx = no_data[1L]
-move_file_id = n_blocks
+move_file_id = nrow(input)
 
 continue = TRUE
 while (continue) {
@@ -38,4 +51,26 @@ while (continue) {
 
 sprintf("%20.0f", sum(head(dense_file_id, end_idx) * (seq_len(end_idx) - 1L)))
 
-input = '2333133121414131402'
+## PART TWO
+input = build_input()
+dense_file_id = initialize_dense_file(input)
+input[, gap_size := empty_blocks]
+input[, offset := 0L]
+
+move_block_idx = nrow(input)
+
+while (move_block_idx >= 1L) {
+  n_move = input$filled_blocks[move_block_idx]
+  fits = which(head(input$gap_size, move_block_idx-1L) >= n_move)
+  if (length(fits)) {
+    # wipe old data
+    dense_file_id[input$left_idx[move_block_idx] + seq_len(n_move) - 1L] = NA_integer_
+    # write moved data
+    dense_file_id[input[fits[1L], left_idx + filled_blocks + offset + seq_len(n_move) - 1L]] = move_block_idx - 1L
+    input[fits[1L], `:=`(gap_size = gap_size - n_move, offset = offset + n_move)]
+    fits = which(head(input$gap_size, move_block_idx-1L) >= n_move)
+  }
+  move_block_idx = move_block_idx - 1L
+}
+
+sprintf("%20.0f", sum(dense_file_id * (seq_along(dense_file_id) - 1L), na.rm=TRUE))
