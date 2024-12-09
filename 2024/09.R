@@ -57,8 +57,6 @@ dense_file_id = initialize_dense_file(input)
 input[, gap_size := empty_blocks]
 input[, offset := 0L]
 
-move_block_idx = nrow(input)
-
 # could probably terminate earlier but shrugs
 # NB: Really subtle in instructions, but this is the correct iteration
 for (move_block_idx in nrow(input):1) {
