@@ -25,7 +25,6 @@ initialize_dense_file = function(input) {
 }
 
 ## PART ONE
-
 input = build_input()
 dense_file_id = initialize_dense_file(input)
 
