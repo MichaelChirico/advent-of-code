@@ -11,14 +11,16 @@ build_input = function(f, str=NULL) {
     t() |>
     data.table() |>
     setnames(c("filled_blocks", "empty_blocks"))
+  # in the dense representation, where is the leftmost entry for this file ID?
   res[, left_idx := 1L + cumsum(shift(filled_blocks, fill=0L) + shift(empty_blocks, fill=0L))]
   res[]
 }
+# get a vector with initial file IDs in the implied positions, NA for empty spaces
 initialize_dense_file = function(input) {
   n_blocks = nrow(input)
   dense_file_id = rep(NA_integer_, n_blocks)
-  dense_file_id[unlist(mapply(\(x, y) seq(x, length.out=y), input$left_idx, input$filled_blocks))] =
-    rep(seq_len(n_blocks) - 1L, input$filled_blocks)
+  filled_idx = unlist(mapply(\(x, y) seq(x, length.out=y), input$left_idx, input$filled_blocks))
+  dense_file_id[filled_idx] = rep(seq_len(n_blocks) - 1L, input$filled_blocks)
   dense_file_id
 }
 
@@ -29,9 +31,6 @@ dense_file_id = initialize_dense_file(input)
 
 no_data = which(is.na(dense_file_id))
 fill_offset = 0L
-
-move_idx = length(dense_file_id)
-target_idx = no_data[1L]
 move_file_id = nrow(input)
 
 continue = TRUE
