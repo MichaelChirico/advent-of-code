@@ -61,6 +61,7 @@ input[, offset := 0L]
 # NB: Really subtle in instructions, but this is the correct iteration
 for (move_block_idx in nrow(input):1) {
   n_move = input$filled_blocks[move_block_idx]
+  # only look to the left-->head()
   fits = which(head(input$gap_size, move_block_idx-1L) >= n_move)
   if (length(fits)) {
     # wipe old data
