@@ -14,7 +14,7 @@ step_delta = cbind(
   c(0L, 1L, 0L, -1L),
   c(-1L, 0L, 1L, 0L)
 )
-# matrix of current positions along a trail |-> matrix of valid next positions
+# matrix of current positions along a trail |--> matrix of valid next positions
 # M = cbind(rows, cols)
 next_steps = function(M) {
   M |>
@@ -33,10 +33,12 @@ starts = data.table(which(input == 0L, arr.ind=TRUE))
 starts[, by=.I, n_distinct_peaks := {
   paths = cbind(row, col)
   for (kk in 1:9) {
+    # code works with 0-row input, but end here anyway
     if (!nrow(paths)) break
     paths = paths |>
       next_steps() |>
       valid_next_steps(kk) |>
+      # unique works as we hope on a matrix: dropping duplicate rows
       unique()
   }
   nrow(paths)
