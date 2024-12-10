@@ -20,7 +20,8 @@ next_steps = function(M) {
 
 starts = data.table(which(input == 0L, arr.ind=TRUE))
 
-starts[, by=.I, n_peaks := {
+## PART ONE
+starts[, by=.I, n_distinct_peaks := {
   paths = cbind(row, col)
   for (kk in 1:9) {
     if (!nrow(paths)) break
@@ -31,4 +32,18 @@ starts[, by=.I, n_peaks := {
   nrow(paths)
 }]
 
-starts[,sum(n_peaks)]
+sum(starts$n_distinct_peaks)
+
+## PART TWO
+starts[, by=.I, n_paths := {
+  paths = cbind(row, col)
+  for (kk in 1:9) {
+    if (!nrow(paths)) break
+    possible_paths = next_steps(paths)
+    keep = input[possible_paths] == kk
+    paths = possible_paths[keep, , drop=FALSE]
+  }
+  nrow(paths)
+}]
+
+sum(starts$n_paths)
