@@ -9,13 +9,22 @@ map_dim = dim(input)
 remove_out_of_bounds = function(M, bounds = map_dim) {
   M[M[,1L] > 0L & M[,1L] <= bounds[1L] & M[,2L] > 0L & M[,2L] <= bounds[2L], ]
 }
+# N/E/S/W steps
+step_delta = cbind(
+  c(0L, 1L, 0L, -1L),
+  c(-1L, 0L, 1L, 0L)
+)
+# matrix of current positions along a trail |-> matrix of valid next positions
 # M = cbind(rows, cols)
-step_delta = cbind(c(0L, 1L, 0L, -1L), c(-1L, 0L, 1L, 0L))
 next_steps = function(M) {
   M |>
     apply(MARGIN=1L, \(xy) sweep(step_delta, 2L, xy, `+`), simplify=FALSE) |>
     do.call(what = rbind) |>
     remove_out_of_bounds()
+}
+valid_next_steps = function(possible_steps, target_value) {
+  keep = input[possible_steps] == target_value
+  possible_steps[keep, , drop=FALSE]
 }
 
 starts = data.table(which(input == 0L, arr.ind=TRUE))
@@ -25,9 +34,10 @@ starts[, by=.I, n_distinct_peaks := {
   paths = cbind(row, col)
   for (kk in 1:9) {
     if (!nrow(paths)) break
-    possible_paths = next_steps(paths)
-    keep = input[possible_paths] == kk
-    paths = unique(possible_paths[keep, , drop=FALSE])
+    paths = paths |>
+      next_steps() |>
+      valid_next_steps(kk) |>
+      unique()
   }
   nrow(paths)
 }]
@@ -39,9 +49,9 @@ starts[, by=.I, n_paths := {
   paths = cbind(row, col)
   for (kk in 1:9) {
     if (!nrow(paths)) break
-    possible_paths = next_steps(paths)
-    keep = input[possible_paths] == kk
-    paths = possible_paths[keep, , drop=FALSE]
+    paths = paths |>
+      next_steps() |>
+      valid_next_steps(kk)
   }
   nrow(paths)
 }]
