@@ -23,18 +23,21 @@ show_rgn = function(rgn, id) {
 }
 
 rst = rast(input, crs="local")
-# values=TRUE is from dev version of {terra}!
+# values=TRUE is from dev version of {terra}
 rgn = patches(rst, values=TRUE)
 rgn_poly = as.polygons(rgn)
 
 ## PART ONE
 
-region_data = data.table(expanse(rgn, byValue=TRUE, transform=FALSE))
+region_data = rgn |>
+  expanse(byValue=TRUE, transform=FALSE) |>
+  as.data.table()
 region_data[, perimeter := perim(rgn_poly)]
 
 region_data[, sum(area * perimeter)]
 
 ## PART TWO
 
+# https://github.com/rspatial/terra/pull/1674
 region_data[, edges := edges(rgn_poly)]
 region_data[, sum(area * edges)]
