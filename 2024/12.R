@@ -36,25 +36,5 @@ region_data[, sum(area * perimeter)]
 
 ## PART TWO
 
-region_data[, filled_area := expanse(fillHoles(rgn_poly), transform=FALSE)]
-region_data[, hole_area := filled_area - area]
-rgn_holes = fillHoles(rgn_poly, inverse=TRUE)
-patches(rast(rgn_holes), values=TRUE)
-
-rgn_mat = as.matrix(rgn, wide=TRUE)
-n_outer_edges = function(id, area) {
-  rgn_idx = which(rgn_mat == id, arr.ind=TRUE)
-  # any rectangle --> 4 edges
-  if (any(apply(rgn_idx, 2L, \(x) length(unique(x))) == 1L)) return(4L)
-  # non-rectangular triomino has 6 edges
-  if (area == 3L) return(6L)
-  return(NA_integer_)
-  browser()
-  pos0 = rgn_idx[1L, , drop=FALSE]
-}
-region_data[, outer_edges := n_outer_edges(.BY$value, area), by=value]
-region_data[, edges := outer_edges]
-region_data[hole_area > 0L & hole_area == 1L, edges := outer_edges + 4L]
-region_data[area <= 2, edges := ]
-
-rgn_mat = matrix(rgn, nrow(input), ncol(input), byrow=TRUE)
+region_data[, edges := edges(rgn_poly)]
+region_data[, sum(area * edges)]
