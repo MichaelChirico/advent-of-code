@@ -1,6 +1,20 @@
 library(data.table)
 library(nc)
 
+show_snapshot = function(bots) {
+  counts = matrix(0, size[1L], size[2L])
+  for (ii in seq_len(nrow(bots))) {
+    loc = as.matrix(bots[ii, .(curr_i, curr_j)])
+    counts[loc] = counts[loc] + 1L
+  }
+  storage.mode(counts) = "character"
+  counts[counts == "0"] = "."
+  counts[row(counts) - 1L == (size[1L]-1L)/2L] = "x"
+  counts[col(counts) - 1L == (size[2L]-1L)/2L] = "x"
+  writeLines(apply(counts, 1L, paste, collapse=""))
+  invisible()
+}
+
 input_file = 'input-data/14'
 
 # https://github.com/tdhock/nc/issues/28
@@ -19,20 +33,6 @@ size = rev(unlist(fread(input_file, nrows=1L, header=FALSE), use.names=FALSE))
 # x %% n, except give 'n' not '0' for 'n %% n' and '0 %% n'
 adj_mod = function(x, n) {
   fifelse(x %in% c(0L, n), n, x %% n)
-}
-
-show_snapshot = function(bots) {
-  counts = matrix(0, size[1L], size[2L])
-  for (ii in seq_len(nrow(bots))) {
-    loc = as.matrix(bots[ii, .(curr_i, curr_j)])
-    counts[loc] = counts[loc] + 1L
-  }
-  storage.mode(counts) = "character"
-  counts[counts == "0"] = "."
-  counts[row(counts) - 1L == (size[1L]-1L)/2L] = "x"
-  counts[col(counts) - 1L == (size[2L]-1L)/2L] = "x"
-  writeLines(apply(counts, 1L, paste, collapse=""))
-  invisible()
 }
 
 # 0-based indexing strikes AGAIN
