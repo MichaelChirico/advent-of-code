@@ -1,24 +1,6 @@
 library(data.table)
 library(nc)
 
-# debugging helper that turned out to be crucial
-#   in part two.
-show_snapshot = function(bots, show_axes=TRUE) {
-  counts = matrix(0, size[1L], size[2L])
-  for (ii in seq_len(nrow(bots))) {
-    loc = as.matrix(bots[ii, .(curr_i, curr_j)])
-    counts[loc] = counts[loc] + 1L
-  }
-  storage.mode(counts) = "character"
-  counts[counts == "0"] = "."
-  if (show_axes) {
-    counts[row(counts) - 1L == (size[1L]-1L)/2L] = "x"
-    counts[col(counts) - 1L == (size[2L]-1L)/2L] = "x"
-  }
-  writeLines(apply(counts, 1L, paste, collapse=""))
-  invisible()
-}
-
 input_file = 'input-data/14'
 
 # https://github.com/tdhock/nc/issues/28
@@ -35,12 +17,32 @@ input[, `:=`(init_i=init_i + 1L, init_j=init_j + 1L)]
 
 # NB: written in j,i form to match the problem statement, hence rev()
 size = rev(unlist(fread(input_file, nrows=1L, header=FALSE), use.names=FALSE))
+axes = (size - 1L)/2L + 1L
+
+# debugging helper that turned out to be crucial
+#   in part two.
+show_snapshot = function(bots, show_axes=TRUE) {
+  counts = matrix(0, size[1L], size[2L])
+  for (ii in seq_len(nrow(bots))) {
+    loc = as.matrix(bots[ii, .(curr_i, curr_j)])
+    counts[loc] = counts[loc] + 1L
+  }
+  storage.mode(counts) = "character"
+  counts[counts == "0"] = "."
+  if (show_axes) {
+    counts[row(counts) == axes[1L] | col(counts) == axes[2L]] = "x"
+  }
+  writeLines(apply(counts, 1L, paste, collapse=""))
+  invisible()
+}
 
 # x %% n, except give 'n' not '0' for 'n %% n' and '0 %% n'
 # NB: '%%' is already vectorized in both inputs!
 adj_mod = function(x, n) {
   fifelse(x %in% c(0L, n), n, x %% n)
 }
+
+## PART ONE
 
 # initialize locations
 input[, `:=`(curr_i=init_i, curr_j=init_j)]
@@ -53,16 +55,16 @@ for (sec in 1:100) {
 }
 
 input[
-  # omit the "axes" between the "quadrants"
-  curr_i-1L != (size[1L]-1L)/2L
-  & curr_j-1L != (size[2L]-1L)/2L,
+  curr_i != axes[1L] & curr_j != axes[2L],
   j = .N,
   # group by which side of each axis a coordinate is on
   by=.(
-    top_half = curr_i < size[1L]/2,
-    left_half = curr_j < size[2L]/2
+    top_half = curr_i < axes[1L],
+    left_half = curr_j < axes[2L]
   )
 ][, prod(N)]
+
+## PART TWO
 
 sec = 0L
 # reset
