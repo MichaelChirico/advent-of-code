@@ -99,9 +99,16 @@ box_right = matrix(wide_map == "[", nrow(wide_map), ncol(wide_map))
 
 bot_idx = which(wide_map == "@", arr.ind=TRUE)
 
+move_boxes = function(map, check_idx) {
+  
+}
+
 for (rule in rules) {
   # before = wide_map
   step = movements[[rule]]
+  axis_dir = if (rule %in% c(">", "<")) "hor" else "ver"
+  next_obj = wide_map[bot_idx + step]
+  
   switch(wide_map[bot_idx + step],
     `.` = {
       wide_map[bot_idx] = "."
