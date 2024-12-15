@@ -1,15 +1,20 @@
 input = readLines('input-data/15')
 
+mat_collapse = \(x) apply(x, 1L, paste, collapse="")
 show_snapshot = function(before, after = NULL, attempted_rule = NULL) {
-  all_lines = apply(before, 1L, paste, collapse="")
   if (!is.null(after)) {
-    cat(sprintf("Attempted rule: %s\n", attempted_rule))
     if (isTRUE(all.equal(before, after))) {
-      all_lines = c(all_lines, "(cannot move)")
+      all_lines = c(mat_collapse(after), "(cannot move)")
     } else {
-      after_lines = apply(after, 1L, paste, collapse="")
-      all_lines = paste(all_lines, "->", after_lines)
+      un_step = -movements[[attempted_rule]]
+      arr = switch(attempted_rule, `>` = "➡️", `^` = "⬆️", `<` = "⬅️", `v` = "⬇️")
+      bot_idx = which(after == "@", arr.ind=TRUE)
+      if (nrow(bot_idx) > 1L) stop("Found >1 bot!")
+      after[bot_idx + un_step] = arr
+      all_lines = mat_collapse(after)
     }
+  } else {
+    all_lines = mat_collapse(before)
   }
   writeLines(all_lines)
   cat("\n")
@@ -29,18 +34,11 @@ rules = input |>
   strsplit(NULL) |>
   unlist()
 
-map = head(input, gap-1L) |>
-  strsplit(NULL) |>
-  do.call(what = rbind)
-
 ## PART ONE
 
 map = head(input, gap-1L) |>
   strsplit(NULL) |>
   do.call(what = rbind)
-
-walls = matrix(map == "#", nrow(map), ncol(map))
-boxes = matrix(map == "O", nrow(map), ncol(map))
 
 bot_idx = which(map == "@", arr.ind=TRUE)
 
@@ -93,23 +91,15 @@ wide_map = head(input, gap-1L) |>
   lapply(\(row) unlist(map_widener[row], use.names=FALSE)) |>
   do.call(what = rbind)
 
-walls = matrix(wide_map == "#", nrow(wide_map), ncol(wide_map))
-box_left = matrix(wide_map == "[", nrow(wide_map), ncol(wide_map))
-box_right = matrix(wide_map == "[", nrow(wide_map), ncol(wide_map))
-
 bot_idx = which(wide_map == "@", arr.ind=TRUE)
 
-move_boxes = function(map, check_idx) {
-  
-}
-
 for (rule in rules) {
-  # before = wide_map
+  before = wide_map
   step = movements[[rule]]
   axis_dir = if (rule %in% c(">", "<")) "hor" else "ver"
   next_obj = wide_map[bot_idx + step]
-  
-  switch(wide_map[bot_idx + step],
+
+  switch(next_obj,
     `.` = {
       wide_map[bot_idx] = "."
       bot_idx = bot_idx + step
@@ -118,24 +108,46 @@ for (rule in rules) {
     `#` = {
       # do nothing
     },
-    `[` = , `]` = {
-      k = 2L
-      repeat {
-        switch(wide_map[bot_idx + k*step],
-          `.` = {
-            browser()
-            shifted_idx = do.call(rbind, sapply(0:k, \(kk) bot_idx + kk*step, simplify=FALSE))
-            shifted = wide_map[shifted_idx]
-            wide_map[shifted_idx] = c(tail(shifted, 1L), head(shifted, -1L))
-            bot_idx = bot_idx + step
-            break
-          },
-          `[` = , `]` = { browser(); k = k + 1L },  # keep looking
-          `#` = break # do nothing: move impossible
+    `[` = , `]` = switch(axis_dir,
+      hor = {
+        k = 2L
+        repeat {
+          switch(wide_map[bot_idx + k*step],
+            `.` = {
+              shifted_idx = do.call(rbind, sapply(0:k, \(kk) bot_idx + kk*step, simplify=FALSE))
+              shifted = wide_map[shifted_idx]
+              wide_map[shifted_idx] = c(tail(shifted, 1L), head(shifted, -1L))
+              bot_idx = bot_idx + step
+              break
+            },
+            `[` = , `]` = { k = k + 1L },  # keep looking
+            `#` = break # do nothing: move impossible
+          )
+        }
+      },
+      ver = {
+        all_box_idx = curr_box_idx = rbind(
+          bot_idx + step,
+          bot_idx + step + (if (next_obj == "[") c(0, 1L) else c(0L, -1L))
         )
+        repeat {
+          next_row_idx = sweep(curr_box_idx, 2L, step, `+`)
+          next_row_obj = wide_map[next_row_idx]
+          if (any(next_row_obj == "#")) break
+          if (all(next_row_obj == ".")) {
+            box_to_idx = sweep(all_box_idx, 2L, step, `+`)
+            if (nrow(all_box_idx) > 2L) browser()
+            wide_map[box_to_idx] = wide_map[all_box_idx]
+            wide_map[all_box_idx] = "."
+            wide_map[bot_idx] = "."
+            bot_idx = bot_idx + step
+            wide_map[bot_idx] = "@"
+            break
+          }
+          browser()
+        }
       }
-    }
+    )
   )
-  # show_snapshot(before, wide_map, rule)
+  show_snapshot(before, wide_map, rule)
 }
-
