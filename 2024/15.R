@@ -1,4 +1,4 @@
-input = readLines('input-data/15-test2')
+input = readLines('input-data/15')
 
 show_snapshot = function(before, after = NULL, attempted_rule = NULL) {
   all_lines = apply(before, 1L, paste, collapse="")
@@ -12,7 +12,7 @@ show_snapshot = function(before, after = NULL, attempted_rule = NULL) {
     }
   }
   writeLines(all_lines)
-  cat("\n\n")
+  cat("\n")
 }
 
 movements = list(
@@ -53,13 +53,13 @@ for (rule in rules) {
     `O` = {
       k = 2L
       repeat {
-        next_obj = map[bot_idx + k*step]
-        switch(next_obj,
+        switch(map[bot_idx + k*step],
           `.` = {
             shifted_idx = do.call(rbind, sapply(0:k, \(kk) bot_idx + kk*step, simplify=FALSE))
             shifted = map[shifted_idx]
             map[shifted_idx] = c(tail(shifted, 1L), head(shifted, -1L))
             bot_idx = bot_idx + step
+            break
           },
           `O` = { k = k + 1L },  # keep looking
           `#` = break # do nothing: move impossible
@@ -67,7 +67,7 @@ for (rule in rules) {
       }
     }
   )
-  show_snapshot(before, map, rule)
+  # show_snapshot(before, map, rule)
 }
 
 box_idx = which(map == "O", arr.ind=TRUE)
