@@ -1,4 +1,19 @@
-input = readLines('input-data/15')
+input = readLines('input-data/15-test2')
+
+show_snapshot = function(before, after = NULL, attempted_rule = NULL) {
+  all_lines = apply(before, 1L, paste, collapse="")
+  if (!is.null(after)) {
+    cat(sprintf("Attempted rule: %s\n", attempted_rule))
+    if (isTRUE(all.equal(before, after))) {
+      all_lines = c(all_lines, "(cannot move)")
+    } else {
+      after_lines = apply(after, 1L, paste, collapse="")
+      all_lines = paste(all_lines, "->", after_lines)
+    }
+  }
+  writeLines(all_lines)
+  cat("\n\n")
+}
 
 movements = list(
   `<` = c(0, -1L),
@@ -24,6 +39,7 @@ boxes = matrix(map == "O", nrow(map), ncol(map))
 bot_idx = which(map == "@", arr.ind=TRUE)
 
 for (rule in rules) {
+  before = map
   step = movements[[rule]]
   switch(map[bot_idx + step],
     `.` = {
@@ -51,6 +67,7 @@ for (rule in rules) {
       }
     }
   )
+  show_snapshot(before, map, rule)
 }
 
 box_idx = which(map == "O", arr.ind=TRUE)
