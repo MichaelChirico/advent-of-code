@@ -63,3 +63,16 @@ repeat {
   if (!n_new_paths) break
   max_steps = max_steps + 1L
 }
+
+count_turns = function(path) {
+  path = rbind(path[1L, ] - (0:1), path)
+  turns = 0L
+  for (ii in 3:nrow(path)) {
+    if (!all(diff(path[ii - (1:0), ]) == diff(path[ii - (2:1), ]))) {
+      turns = turns + 1L
+    }
+  }
+  turns
+}
+
+min(sapply(paths, \(path) nrow(path) - 1L + 1000L * count_turns(path)))
