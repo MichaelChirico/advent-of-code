@@ -80,22 +80,30 @@ sum(100L*(box_idx[,"row"]-1L) + box_idx[,"col"]-1L)
 
 ## PART TWO
 
-map_widener = list(
-  `#` = c("#", "#"),
-  `O` = c("[", "]"),
-  `.` = c(".", "."),
-  `@` = c("@", ".")
-)
-
 paired_idx = function(box_idx, box_side = NULL) {
   if (is.null(box_side)) box_side = wide_map[box_idx]
   box_idx + cbind(0, ifelse(box_side == "[", 1L, -1L))
 }
 
-wide_map = head(input, gap-1L) |>
-  strsplit(NULL) |>
-  lapply(\(row) unlist(map_widener[row], use.names=FALSE)) |>
-  do.call(what = rbind)
+build_wide_map = function(lines, file=NULL) {
+  map_widener = list(
+    `#` = c("#", "#"),
+    `O` = c("[", "]"),
+    `.` = c(".", "."),
+    `@` = c("@", ".")
+  )
+
+  if (!is.null(file)) {
+    lines = readLines(file)
+    lines = head(lines, which(!nzchar(input))-1L)
+  }
+  lines |>
+    strsplit(NULL) |>
+    lapply(\(row) unlist(map_widener[row], use.names=FALSE)) |>
+    do.call(what = rbind)
+}
+
+wide_map = build_wide_map(head(input, gap-1L))
 
 bot_idx = which(wide_map == "@", arr.ind=TRUE)
 
@@ -161,3 +169,7 @@ for (rule in rules) {
   )
   # show_snapshot(before, wide_map, rule)
 }
+
+box_left_idx = which(wide_map == "[", arr.ind=TRUE)
+
+sum(100L*(box_left_idx[,"row"]-1L) + box_left_idx[,"col"]-1L)
