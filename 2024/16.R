@@ -15,6 +15,17 @@ draw_path = function(path) {
   apply(draw, 1L, paste, collapse="") |> c("") |> writeLines()
 }
 
+count_turns = function(path) {
+  path = rbind(path[1L, ] - (0:1), path)
+  turns = 0L
+  for (ii in 3:nrow(path)) {
+    if (!all(diff(path[ii - (1:0), ]) == diff(path[ii - (2:1), ]))) {
+      turns = turns + 1L
+    }
+  }
+  turns
+}
+
 start_idx = which(input == "S", arr.ind=TRUE)
 end_idx = which(input == "E", arr.ind=TRUE)
 
@@ -29,10 +40,6 @@ step_touches = function(step, prev_steps) {
 }
 
 paths = list(start_idx)
-all_tread_idx = matrix(nrow = sum(input %in% c(".", "S")), ncol=2L)
-colnames(all_tread_idx) = c("row", "col")
-all_tread_idx[prev_tread_idx<-1L, ] = start_idx
-n_completed_paths = 0L
 max_steps = 1L
 run_env <- environment()
 repeat {
@@ -46,12 +53,13 @@ repeat {
     }
     next_path = lapply(1:4, function(jj) {
       next_step = last_step + step_delta[jj,, drop=FALSE]
-      if (input[next_step] != "#" && !step_touches(next_step, all_tread_idx[1:prev_tread_idx,, drop=FALSE])) {
-        if (step_touches(next_step, end_idx)) {
-          run_env$n_completed_paths = run_env$n_completed_paths + 1L
-        } else {
-          run_env$all_tread_idx[run_env$prev_tread_idx<-run_env$prev_tread_idx+1L, ] = next_step
-        }
+      # don't allow loops within a path. earlier, I tried to prevent
+      #   any path from re-treading where any other path had already
+      #   been, but see 16-test3 -- because turns are so highly
+      #   penalized, it's possible to find a path that reaches a point
+      #   later but still "costs" less, because the first path to get
+      #   there took more turns.
+      if (input[next_step] != "#" && !step_touches(next_step, path)) {
         rbind(path, next_step)
       }
     })
@@ -62,17 +70,7 @@ repeat {
   paths = unlist(paths, recursive=FALSE)
   if (!n_new_paths) break
   max_steps = max_steps + 1L
-}
-
-count_turns = function(path) {
-  path = rbind(path[1L, ] - (0:1), path)
-  turns = 0L
-  for (ii in 3:nrow(path)) {
-    if (!all(diff(path[ii - (1:0), ]) == diff(path[ii - (2:1), ]))) {
-      turns = turns + 1L
-    }
-  }
-  turns
+  cat(sprintf("%04d\n", max_steps))
 }
 
 min(sapply(paths, \(path) nrow(path) - 1L + 1000L * count_turns(path)))
