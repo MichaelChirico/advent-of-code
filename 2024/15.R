@@ -86,6 +86,12 @@ map_widener = list(
   `.` = c(".", "."),
   `@` = c("@", ".")
 )
+
+paired_idx = function(box_idx, box_side = NULL) {
+  if (is.null(box_side)) box_side = wide_map[box_idx]
+  box_idx + cbind(0, ifelse(box_side == "[", 1L, -1L))
+}
+
 wide_map = head(input, gap-1L) |>
   strsplit(NULL) |>
   lapply(\(row) unlist(map_widener[row], use.names=FALSE)) |>
@@ -93,13 +99,8 @@ wide_map = head(input, gap-1L) |>
 
 bot_idx = which(wide_map == "@", arr.ind=TRUE)
 
-paired_idx = function(box_idx, box_side = NULL) {
-  if (is.null(box_side)) box_side = wide_map[box_idx]
-  box_idx + cbind(0, ifelse(box_side == "[", 1L, -1L))
-}
-
 for (rule in rules) {
-  before = wide_map
+  # before = wide_map
   step = movements[[rule]]
   axis_dir = if (rule %in% c(">", "<")) "hor" else "ver"
   next_obj = wide_map[bot_idx + step]
@@ -144,9 +145,8 @@ for (rule in rules) {
             box_to_idx = sweep(all_box_idx, 2L, step, `+`)
             for (jj in nrow(all_box_idx):1L) {
               wide_map[box_to_idx[jj,, drop=FALSE]] = wide_map[all_box_idx[jj,, drop=FALSE]]
+              wide_map[all_box_idx[jj,, drop=FALSE]] = "."
             }
-            # bot will only move into one of these two (double-write the bot destination)
-            wide_map[all_box_idx[1:2, ]] = "."
             wide_map[bot_idx] = "."
             bot_idx = bot_idx + step
             wide_map[bot_idx] = "@"
@@ -159,5 +159,5 @@ for (rule in rules) {
       }
     )
   )
-  show_snapshot(before, wide_map, rule)
+  # show_snapshot(before, wide_map, rule)
 }
