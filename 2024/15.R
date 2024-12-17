@@ -7,7 +7,7 @@ show_snapshot = function(before, after = NULL, attempted_rule = NULL) {
       all_lines = c(mat_collapse(after), "(cannot move)")
     } else {
       un_step = -movements[[attempted_rule]]
-      arr = switch(attempted_rule, `>` = "➡️", `^` = "⬆️", `<` = "⬅️", `v` = "⬇️")
+      arr = switch(attempted_rule, `>` = "→", `^` = "↑", `<` = "←", `v` = "↓")
       bot_idx = which(after == "@", arr.ind=TRUE)
       if (nrow(bot_idx) > 1L) stop("Found >1 bot!")
       after[bot_idx + un_step] = arr
@@ -93,6 +93,11 @@ wide_map = head(input, gap-1L) |>
 
 bot_idx = which(wide_map == "@", arr.ind=TRUE)
 
+paired_idx = function(box_idx, box_side = NULL) {
+  if (is.null(box_side)) box_side = wide_map[box_idx]
+  box_idx + cbind(0, ifelse(box_side == "[", 1L, -1L))
+}
+
 for (rule in rules) {
   before = wide_map
   step = movements[[rule]]
@@ -128,23 +133,28 @@ for (rule in rules) {
       ver = {
         all_box_idx = curr_box_idx = rbind(
           bot_idx + step,
-          bot_idx + step + (if (next_obj == "[") c(0, 1L) else c(0L, -1L))
+          paired_idx(bot_idx + step, next_obj)
         )
         repeat {
           next_row_idx = sweep(curr_box_idx, 2L, step, `+`)
           next_row_obj = wide_map[next_row_idx]
           if (any(next_row_obj == "#")) break
-          if (all(next_row_obj == ".")) {
+          next_row_box_idx = which(next_row_obj %in% c("[", "]"))
+          if (!length(next_row_box_idx)) {
             box_to_idx = sweep(all_box_idx, 2L, step, `+`)
-            if (nrow(all_box_idx) > 2L) browser()
-            wide_map[box_to_idx] = wide_map[all_box_idx]
-            wide_map[all_box_idx] = "."
+            for (jj in nrow(all_box_idx):1L) {
+              wide_map[box_to_idx[jj,, drop=FALSE]] = wide_map[all_box_idx[jj,, drop=FALSE]]
+            }
+            # bot will only move into one of these two (double-write the bot destination)
+            wide_map[all_box_idx[1:2, ]] = "."
             wide_map[bot_idx] = "."
             bot_idx = bot_idx + step
             wide_map[bot_idx] = "@"
             break
           }
-          browser()
+          curr_box_idx = next_row_idx[next_row_box_idx, , drop=FALSE]
+          curr_box_idx = unique(rbind(curr_box_idx, paired_idx(curr_box_idx)))
+          all_box_idx = rbind(all_box_idx, curr_box_idx)
         }
       }
     )
