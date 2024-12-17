@@ -1,5 +1,5 @@
 library(data.table)
-input = readLines('input-data/16') |>
+input = readLines('input-data/16-test2') |>
   strsplit(NULL) |>
   do.call(what = rbind)
 
@@ -20,15 +20,6 @@ draw_path = function(path, truncate=TRUE) {
   apply(draw, 1L, paste, collapse="") |> c("") |> writeLines()
 }
 
-start_idx = which(input == "S", arr.ind=TRUE)
-end_idx = which(input == "E", arr.ind=TRUE)
-
-# N/E/S/W steps
-step_delta = cbind(
-  row = c(0L, 1L, 0L, -1L),
-  col = c(-1L, 0L, 1L, 0L)
-)
-
 incremental_cost = function(prev_path, next_row) {
   if (nrow(prev_path) == 1L) {
     return(1L + 1000L * (prev_path$col == next_row$col))
@@ -37,6 +28,12 @@ incremental_cost = function(prev_path, next_row) {
   is_turn = !all(diff(latest3[1:2, ]) == diff(latest3[2:3, ]))
   tail(prev_path$cum_cost, 1L) + 1L + 1000L * is_turn
 }
+
+# N/E/S/W steps
+step_delta = cbind(
+  row = c(0L, 1L, 0L, -1L),
+  col = c(-1L, 0L, 1L, 0L)
+)
 
 next_paths = function(x, path_id) {
   last_step = c(tail(x$row, 1L), tail(x$col, 1L))
@@ -57,6 +54,31 @@ next_paths = function(x, path_id) {
   }))
 }
 
+remove_known_worse_paths = function(paths) {
+  # Need two steps! Two paths which cross but where
+  #   one requires a turn can have different cumulative
+  #   costs but wind up changing order after the turn!
+  last_two_steps = paths[, tail(.SD, 2L), by=path_id]
+  path_comparison = merge(
+    last_two_steps, paths,
+    by=c("row", "col"), suffixes=c("_new", "_prev")
+  ) |>
+    _[
+      path_id_prev != path_id_new,
+      if (.N >= 2L) .(costlier_id = fifelse(
+        max(cum_cost_new) >= max(cum_cost_prev),
+        path_id_new,
+        path_id_prev
+      )),
+      keyby=.(path_id_new, path_id_prev)
+    ]
+  if (!nrow(path_comparison)) return(paths)
+  paths[!path_id %in% unique(path_comparison$costlier_id)]
+}
+
+start_idx = which(input == "S", arr.ind=TRUE)
+end_idx = which(input == "E", arr.ind=TRUE)
+
 paths = data.table(start_idx)
 paths[, `:=`(path_id = 1L, cum_cost = 0L)]
 max_steps = 1L
@@ -66,28 +88,15 @@ setkey(start_end)
 
 total_steps = nrow(paths)
 repeat {
-  if (any(paths$col > ncol(input))) browser()
-  updated_paths = paths |>
+  paths = paths |>
     _[, by=path_id, next_paths(.SD, .BY$path_id)] |>
     _[, path_id := .GRP, by=.(path_id, sub_path_id)] |>
-    _[, sub_path_id := NULL]
-  if (any(updated_paths$col > ncol(input))) browser()
-  paths = updated_paths
-  costlier_path_ids = paths[, .SD[.N], by=path_id] |>
-    merge(paths, by=c("row", "col"), suffixes=c("_new", "_prev")) |>
-    _[
-      path_id_prev != path_id_new,
-      unique(fifelse(
-        cum_cost_new < cum_cost_prev,
-        path_id_prev,
-        path_id_new
-      ))
-    ]
-  paths = paths[!path_id %in% costlier_path_ids]
+    _[, sub_path_id := NULL] |>
+    remove_known_worse_paths()
+
   if (nrow(paths) == total_steps) break
   total_steps = nrow(paths)
   max_steps = max_steps + 1L
-  cat(sprintf("%04d\n", max_steps))
 }
 
 if (uniqueN(paths$path_id) > 1L) stop("Expected only one path to survive!")
