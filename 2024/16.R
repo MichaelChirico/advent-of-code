@@ -120,4 +120,13 @@ repeat {
   ))
 }
 
+## PART ONE
 paths[, by=path_id, cum_cost[.N]][, min(V1)]
+
+## PART TWO
+paths[
+  paths[, by=path_id, cum_cost[.N]][V1 == min(V1)],
+  on = 'path_id'
+] |>
+  unique(by = c("row", "col")) |>
+  nrow()
