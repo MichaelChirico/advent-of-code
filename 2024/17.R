@@ -17,14 +17,13 @@ initialize_register = function(A = NULL, B = NULL, C = NULL) {
 BXOR = function(x, y) {
   stopifnot(length(x)==1, length(y)==1)
   if (x < .Machine$integer.max && y < .Machine$integer.max) return(bitwXor(x, y))
-  # error if we need more than two divisions
-  old = options(warn = 2)
-  on.exit(options(old))
-
-  BIG = .Machine$integer.max
-  x_bin = c(as.integer(intToBits(x %% BIG)), as.integer(intToBits(x %/% BIG)))
-  y_bin = c(as.integer(intToBits(y %% BIG)), as.integer(intToBits(y %/% BIG)))
-  sum(2**(0:63) * bitwXor(x_bin, y_bin))
+  if (x < 8) {
+    8 * (y %/% 8) + bitwXor(y %% 8, x)
+  } else if (y < 8) {
+    8 * (x %/% 8) + bitwXor(x %% 8, y)
+  } else {
+    stop("Unexpected input")
+  }
 }
 
 program = input["Program", as.integer(unlist(strsplit(V2, ",")))]
@@ -81,19 +80,27 @@ paste(run(program)$out, collapse=",")
 
 ## PART TWO
 
-digits = data.table(k = 0:7)
-
 tail_matches = function(x, y, n) all(tail(x, n) == tail(y, n))
+# assumed highest bit is leftmost
+octal_digits_to_decimal = function(x) sum(8^((length(x)-1L):0) * x)
+base8mat_to_decimal = function(x) apply(x, 1L, octal_digits_to_decimal)
+decimal_to_octal = function(x) {
+  if (x < .Machine$integer.max) sprintf("%o", as.integer(x))
+  paste0(
+    sprintf("%o", as.integer(x %/% 8**10)),
+    sprintf("%o", as.integer(x %% 8**10))
+  )
+}
 
-base8mat_to_dec = function(x) rowSums(sweep(x, 2L, 8^((ncol(x)-1):0), `*`))
-
+digits = data.table(k = 0:7)
 for (iter in length(program):1) {
   setnames(digits, "k", paste0("d", iter))
-  digits[, A := base8mat_to_dec(.SD), .SDcols=patterns("^d")]
+  digits[, A := base8mat_to_decimal(.SD), .SDcols=patterns("^d")]
   digits[, by=.I, out_matches := tail_matches(run(program, A=A)$out, program, length(program)-iter+1L)]
   keep_cols = paste0("d", length(program):iter)
   digits = digits[(out_matches), .(k = 0:7), by=keep_cols]
 }
 
-digits[, A := base8mat_to_dec(.SD)]
-digits[, sprintf("%30f", min(A))]
+digits = unique(digits, by=setdiff(names(digits), "k"))[, !"k"]
+digits[, A := base8mat_to_decimal(.SD)]
+digits[, sprintf("%30.0f", min(A))]
