@@ -1,5 +1,5 @@
 library(data.table)
-input = readLines('input-data/16-test2') |>
+input = readLines('input-data/16') |>
   strsplit(NULL) |>
   do.call(what = rbind)
 
@@ -114,8 +114,10 @@ repeat {
   if (nrow(paths) == total_steps) break
   total_steps = nrow(paths)
   max_steps = max_steps + 1L
+  cat(sprintf(
+    "After %d steps, exploring %d paths with %d total steps\n",
+    max_steps, uniqueN(paths$path_id), nrow(paths)
+  ))
 }
 
-if (uniqueN(paths$path_id) > 1L) stop("Expected only one path to survive!")
-
-paths[.N, cum_cost]
+paths[, by=path_id, cum_cost[.N]][, min(V1)]
