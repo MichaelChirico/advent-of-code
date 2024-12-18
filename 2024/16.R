@@ -5,7 +5,16 @@ input = readLines('input-data/16-test2') |>
 
 draw_path = function(path, truncate=TRUE) {
   input[input == "."] = " "
-  if (is.data.table(path)) path = path[, cbind(row=row, col=col)]
+  if (is.data.table(path)) {
+    if ("path_id" %chin% names(path)) {
+      path[, by=path_id, {
+        cat(sprintf("path_id=%d\n", .BY$path_id))
+        draw_path(.SD)
+      }]
+      return(invisible())
+    }
+    path = path[, cbind(row=row, col=col)]
+  }
   if (nrow(path) > 1L) {
     input[path[1:(nrow(path)-1L),, drop=FALSE]] = "."
     input[path[nrow(path),, drop=FALSE]] = "X"
@@ -55,25 +64,33 @@ next_paths = function(x, path_id) {
 }
 
 remove_known_worse_paths = function(paths) {
-  # Need two steps! Two paths which cross but where
-  #   one requires a turn can have different cumulative
-  #   costs but wind up changing order after the turn!
-  last_two_steps = paths[, tail(.SD, 2L), by=path_id]
+  # Look ahead to the cost of the next step to account
+  #   for any difference induced by a required turn that
+  #   hasn't yet been taken on one path as of this step.
+  paths_copy = copy(paths)
+  paths_copy[, next_cum_cost := shift(cum_cost, -1L), by=path_id]
+  last_two_steps = paths_copy[, tail(.SD, 2L), by=path_id]
+  last_two_steps[, ord := seq_len(.N), by=path_id]
   path_comparison = merge(
-    last_two_steps, paths,
+    last_two_steps, paths_copy,
     by=c("row", "col"), suffixes=c("_new", "_prev")
   ) |>
     _[
       path_id_prev != path_id_new,
-      if (.N >= 2L) .(costlier_id = fifelse(
-        max(cum_cost_new) >= max(cum_cost_prev),
-        path_id_new,
-        path_id_prev
-      )),
+      if (.N == 2L) .SD,
       keyby=.(path_id_new, path_id_prev)
     ]
   if (!nrow(path_comparison)) return(paths)
-  paths[!path_id %in% unique(path_comparison$costlier_id)]
+  costlier_ids = path_comparison[
+    # picking a "winner" from a tie requires more info
+    ord == 1 & next_cum_cost_new != next_cum_cost_prev,
+    unique(fifelse(
+      next_cum_cost_new > next_cum_cost_prev,
+      path_id_new,
+      path_id_prev
+    ))
+  ]
+  paths[!path_id %in% costlier_ids]
 }
 
 start_idx = which(input == "S", arr.ind=TRUE)
