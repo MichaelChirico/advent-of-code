@@ -16,7 +16,7 @@ initialize_register = function(A = NULL, B = NULL, C = NULL) {
 
 BXOR = function(x, y) {
   stopifnot(length(x)==1, length(y)==1)
-  #if (x < .Machine$integer.max && y < .Machine$integer.max) return(bitwXor(x, y))
+  if (x < .Machine$integer.max && y < .Machine$integer.max) return(bitwXor(x, y))
   # error if we need more than two divisions
   old = options(warn = 2)
   on.exit(options(old))
@@ -29,7 +29,7 @@ BXOR = function(x, y) {
 
 program = input["Program", as.integer(unlist(strsplit(V2, ",")))]
 
-run = function(program, stop_early=FALSE, A=NULL, B=NULL, C=NULL) {
+run = function(program, A=NULL, B=NULL, C=NULL, stop_early=FALSE, debug=FALSE) {
   renv = initialize_register(A=A, B=B, C=C)
   # ensure 'renv' gets the right inheritance
   combo = function(x) switch(x + 1L,
@@ -67,66 +67,33 @@ run = function(program, stop_early=FALSE, A=NULL, B=NULL, C=NULL) {
       bdv = bdv(operand),
       cdv = cdv(operand)
     )
+    if (debug) cat(sprintf(
+      "After instruction %2d: (A,B,C)=(%2d, %2d, %2d); out=%s\n",
+      jj, renv$A, renv$B, renv$C, paste(renv$out, collapse=",")
+    ))
     jj = jj + 2L
   }
   renv
 }
 
 ## PART ONE
-renv = initialize_register()
-jj = 1L
-while (jj < length(program)) {
-  instr = program[jj]
-  operand = program[jj + 1L]
-
-  switch(instr + 1L,
-    adv = adv(operand),
-    bxl = bxl(operand),
-    bst = bst(operand),
-    jnz = if (renv$A != 0L) { jj <- operand+1L; next },
-    bxc = bxc(operand),
-    out = out(operand),
-    bdv = bdv(operand),
-    cdv = cdv(operand)
-  )
-  jj = jj + 2L
-}
-
-paste(renv$out, collapse=",")
+paste(run(program)$out, collapse=",")
 
 ## PART TWO
 
-# binary searches to find range of values producing
-#   programs of the right length
+digits = data.table(k = 0:7)
 
-lower = 8**(length(program)-2)
-upper = 8**(length(program)+1)
-repeat {
-  A = floor((lower + upper)/2)
-  if (length(run(program, A=A)$out) >= length(program)) {
-    upper=A
-  } else if (length(run(program, A=A+1)$out) == length(program)) {
-    break
-  } else {
-    lower=A
-  }
+tail_matches = function(x, y, n) all(tail(x, n) == tail(y, n))
+
+base8mat_to_dec = function(x) rowSums(sweep(x, 2L, 8^((ncol(x)-1):0), `*`))
+
+for (iter in length(program):1) {
+  setnames(digits, "k", paste0("d", iter))
+  digits[, A := base8mat_to_dec(.SD), .SDcols=patterns("^d")]
+  digits[, by=.I, out_matches := tail_matches(run(program, A=A)$out, program, length(program)-iter+1L)]
+  keep_cols = paste0("d", length(program):iter)
+  digits = digits[(out_matches), .(k = 0:7), by=keep_cols]
 }
 
-min_value = A+1
-
-check = matrix(0L, nrow=3L, ncol=8**5)
-for (k in seq_len(8**5)-1) {
-  check[, k+1] = run(program, A=k, stop_early=TRUE)$out[1:3]
-}
-poss_mod32768 = which(apply(check, 2L, \(x) all(x==head(program, 3L))))
-
-k = min_value %/% 8**5
-i = 1L
-repeat {
-  if (k %% 100 == 0L) cat(k, '\n')
-  for (i in seq_along(poss_mod32768)) {
-    A = 8**5 * k + poss_mod32768[i]
-    if (isTRUE(all.equal(run(program, A=A, stop_early=TRUE)$out, program))) stop("A=", A)
-  }
-  k = k + 1L
-}
+digits[, A := base8mat_to_dec(.SD)]
+digits[, sprintf("%30f", min(A))]
