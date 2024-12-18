@@ -54,15 +54,19 @@ while (jj < length(program)) {
 paste(renv$out, collapse=",")
 
 ## PART TWO
-A = 1L
-repeat {
-  if (A %% 1000L == 0L) cat(sprintf("A=%d\n", A))
-  renv = initialize_register(A = A)
+
+# reading the program, the 2nd-last step is the only
+#   output, which will produce mod(B, 8). in the previous
+#   step, B was re-set to floor(A / 8); A is not update
+#   by any 
+check = integer(1024)
+for (k in 0:1023) {
+  renv = initialize_register(A = k)
   jj = 1L
   while (jj < length(program)) {
     instr = program[jj]
     operand = program[jj + 1L]
-  
+
     switch(instr + 1L,
       adv = adv(operand),
       bxl = bxl(operand),
@@ -79,5 +83,36 @@ repeat {
     )
     jj = jj + 2L
   }
-  A = A + 1L
+  check[k] = renv$out[1L]
+}
+poss_mod1024 = which(check == 2L)
+
+possibleA = outer(poss_mod1024, 1024*(0:2**17), `+`)
+for (ii in seq_along(possibleA)) {
+  A = possibleA[ii]
+  if (ii %% 10000L == 0L) cat(sprintf("A=%d\n", A))
+  renv = initialize_register(A = A)
+  jj = 1L
+  while (jj < length(program)) {
+    instr = program[jj]
+    operand = program[jj + 1L]
+
+    switch(instr + 1L,
+      adv = adv(operand),
+      bxl = bxl(operand),
+      bst = bst(operand),
+      jnz = if (renv$A != 0L) { jj <- operand+1L; next },
+      bxc = bxc(operand),
+      out = {
+        out(operand)
+        if (length(renv$out) > length(program)) break
+        if (any(renv$out != head(program, length(renv$out)))) break
+      },
+      bdv = bdv(operand),
+      cdv = cdv(operand)
+    )
+    jj = jj + 2L
+  }
+  stopifnot(renv$out[1L] == 2L)
+  if (isTRUE(all.equal(renv$out, program))) stop("A=", A)
 }
