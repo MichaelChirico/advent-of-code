@@ -1,10 +1,17 @@
 library(data.table)
-input = readLines('input-data/16') |>
-  strsplit(NULL) |>
-  do.call(what = rbind)
+input = fread('input-data/18', header=FALSE)
+setnames(input, c('j', 'i'))
+input[, names(.SD) := lapply(.SD, `+`, 1L)]
+
+MAX = 71L
+# TRUE: '#', FALSE: '.'
+walls = matrix(FALSE, MAX, MAX)
+
+walls[input[1:1024, cbind(i, j)]] = TRUE
 
 draw_path = function(path, truncate=TRUE) {
-  input[input == "."] = " "
+  path_grid = matrix(" ", MAX, MAX)
+  path_grid[walls] = "#"
   if (is.data.table(path)) {
     if ("path_id" %chin% names(path)) {
       path[, by=path_id, {
@@ -16,26 +23,17 @@ draw_path = function(path, truncate=TRUE) {
     path = path[, cbind(row=row, col=col)]
   }
   if (nrow(path) > 1L) {
-    input[path[1:(nrow(path)-1L),, drop=FALSE]] = "."
-    input[path[nrow(path),, drop=FALSE]] = "X"
+    path_grid[path[1:(nrow(path)-1L),, drop=FALSE]] = "."
+    path_grid[path[nrow(path),, drop=FALSE]] = "X"
   }
   if (truncate) {
     draw_range = apply(path, 2L, range)
     draw_range[] = draw_range + c(-1L, 1L)
-    draw = input[draw_range[1L]:draw_range[2L], draw_range[3L]:draw_range[4L]]
+    draw = path_grid[draw_range[1L]:draw_range[2L], draw_range[3L]:draw_range[4L]]
   } else {
-    draw = input
+    draw = path_grid
   }
   apply(draw, 1L, paste, collapse="") |> c("") |> writeLines()
-}
-
-incremental_cost = function(prev_path, next_row) {
-  if (nrow(prev_path) == 1L) {
-    return(1L + 1000L * (prev_path$col == next_row$col))
-  }
-  latest3 = as.matrix(rbind(tail(prev_path[, .(row, col)], 2L), next_row[, .(row, col)]))
-  is_turn = !all(diff(latest3[1:2, ]) == diff(latest3[2:3, ]))
-  tail(prev_path$cum_cost, 1L) + 1L + 1000L * is_turn
 }
 
 # N/E/S/W steps
@@ -54,38 +52,29 @@ next_paths = function(x, path_id) {
   }
   rbindlist(idcol = 'sub_path_id', lapply(1:4, function(jj) {
     next_step = step_delta[jj,, drop=FALSE] + last_step
-    if (input[next_step] == "#") return(NULL)
+    if (any(next_step < 1L | next_step > MAX)) return(NULL)
+    if (walls[next_step]) return(NULL)
     next_row = data.table(next_step)
     # no loops within a path
     if (nrow(x[next_row, on=.NATURAL, nomatch=NULL])) return(NULL)
-    next_row[, cum_cost := incremental_cost(x, .SD)]
+    next_row[, cum_cost := tail(x$cum_cost, 1L) + 1L]
     rbind(x, next_row)
   }))
 }
 
 remove_known_worse_paths = function(paths) {
-  # Look ahead to the cost of the next step to account
-  #   for any difference induced by a required turn that
-  #   hasn't yet been taken on one path as of this step.
-  paths_copy = copy(paths)
-  paths_copy[, next_cum_cost := shift(cum_cost, -1L), by=path_id]
-  last_two_steps = paths_copy[, tail(.SD, 2L), by=path_id]
-  last_two_steps[, ord := seq_len(.N), by=path_id]
+  last_steps = paths[, .SD[.N], by=path_id]
   path_comparison = merge(
-    last_two_steps, paths_copy,
+    last_steps, paths,
     by=c("row", "col"), suffixes=c("_new", "_prev")
   ) |>
     _[
-      path_id_prev != path_id_new,
-      if (.N == 2L) .SD,
-      keyby=.(path_id_new, path_id_prev)
+      path_id_prev != path_id_new
     ]
   if (!nrow(path_comparison)) return(paths)
-  costlier_ids = path_comparison[
-    # picking a "winner" from a tie requires more info
-    ord == 1 & next_cum_cost_new != next_cum_cost_prev,
+  costlier_ids = path_comparison[,
     unique(fifelse(
-      next_cum_cost_new > next_cum_cost_prev,
+      cum_cost_new > cum_cost_prev,
       path_id_new,
       path_id_prev
     ))
@@ -93,11 +82,10 @@ remove_known_worse_paths = function(paths) {
   paths[!path_id %in% costlier_ids]
 }
 
-start_idx = which(input == "S", arr.ind=TRUE)
-end_idx = which(input == "E", arr.ind=TRUE)
+end_idx = cbind(row=MAX, col=MAX)
 
-paths = data.table(start_idx)
-paths[, `:=`(path_id = 1L, cum_cost = 0L)]
+paths = data.table(row=1L, col=1L)
+paths[, `:=`(path_id=1L, cum_cost=0L)]
 max_steps = 1L
 
 total_steps = nrow(paths)
@@ -117,13 +105,3 @@ repeat {
   ))
 }
 
-## PART ONE
-paths[, by=path_id, cum_cost[.N]][, min(V1)]
-
-## PART TWO
-paths[
-  paths[, by=path_id, cum_cost[.N]][V1 == min(V1)],
-  on = 'path_id'
-] |>
-  unique(by = c("row", "col")) |>
-  nrow()
