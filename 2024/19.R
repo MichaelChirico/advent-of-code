@@ -73,12 +73,14 @@ n_splits_at_char = function(chars, char_i) {
   ))
 }
 
+# https://github.com/Rdatatable/data.table/issues/6668
+options(datatable.verbose=FALSE) 
 total = mapply(
   function(ii, nc) {
     if (ii %% 50L == 0L) cat(sprintf("design=%d\n", ii))
-    can_split_at_any(design_chars[ii, seq_len(nc)])
+    n_splits_at_any(design_chars[ii, seq_len(nc)])
   },
   seq_along(designs_full), nchar(designs_full)
 )
 
-sum(feasible)
+sum(total)
