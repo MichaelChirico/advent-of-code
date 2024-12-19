@@ -13,33 +13,33 @@ designs_full = tail(input, -2L)
 design_chars = designs_full |>
   tstrsplit(NULL) |>
   setDT() |>
-  # NB: ** DISTORTS THE INPUT ORDER **
-  setkey() |>
   as.matrix() |>
   unname()
 
-can_split_at = function(chars, char_i=NULL) {
-  if (is.null(char_i)) {
-    char_i = seq_along(chars)
+can_split_at_any = function(chars) {
+  # fail at char_i=j does _not_ imply failure at j+1,
+  #   because we also join on 'size'. but we _could_
+  #   cut the loop early once any valid split is found.
+  for (char_i in seq_len(min(length(chars), max_ptn))) {
+    if (can_split_at_char(chars, char_i)) return(TRUE)
   }
-  if (length(char_i) > 1L) {
-    return(any(sapply(char_i, can_split_at, chars=chars)))
-  }
-  if (char_i > max_ptn) return(FALSE)
+  return(FALSE)
+}
+
+can_split_at_char = function(chars, char_i) {
   before = as.list(head(chars, char_i))
   names(before) = paste0("V", seq_along(before))
   before = c(before, size = char_i)
-  match_before = patterns[before, on=names(before)]
+  match_before = patterns[before, on=names(before), nomatch=NULL]
   if (!nrow(match_before)) return(FALSE)
   if (length(chars) == char_i) return(TRUE)
-  unmatched_chars = tail(chars, -char_i)
   # NB: inefficiently keeps trying, e.g. if 'bg' fails,
   #   we know 'bgg' will also fail. ignore for now...
-  match_before[, by=.I, can_split_at(tail(chars, -size), NULL)]
+  match_before[, by=.I, can_split_at_any(tail(chars, -size))]
   return(FALSE)
 }
 
 feasible = mapply(
-  \(ii, nc) can_split_at(design_chars[ii, ], seq_len(nc)),
+  \(ii, nc) can_split_at_any(design_chars[ii, seq_len(nc)]),
   seq_along(designs_full), nchar(designs_full)
 )
