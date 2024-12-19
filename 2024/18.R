@@ -1,5 +1,5 @@
 library(data.table)
-input = fread('input-data/18-test', header=FALSE)
+input = fread('input-data/18', header=FALSE)
 setnames(input, c('j', 'i'))
 input[, names(.SD) := lapply(.SD, `+`, 1L)]
 
@@ -7,7 +7,7 @@ MAX = max(sapply(input, max))
 # TRUE: '#', FALSE: '.'
 walls = matrix(FALSE, MAX, MAX)
 
-N_BYTES=12L
+N_BYTES=1024
 walls[input[1:N_BYTES, cbind(i, j)]] = TRUE
 
 draw_path = function(path, truncate=TRUE) {
