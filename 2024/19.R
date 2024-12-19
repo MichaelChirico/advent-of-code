@@ -16,6 +16,7 @@ design_chars = designs_full |>
   as.matrix() |>
   unname()
 
+## PART ONE
 can_split_at_any = function(chars) {
   # fail at char_i=j does _not_ imply failure at j+1,
   #   because we also join on 'size'. but we _could_
@@ -41,6 +42,38 @@ can_split_at_char = function(chars, char_i) {
 }
 
 feasible = mapply(
+  function(ii, nc) {
+    if (ii %% 50L == 0L) cat(sprintf("design=%d\n", ii))
+    can_split_at_any(design_chars[ii, seq_len(nc)])
+  },
+  seq_along(designs_full), nchar(designs_full)
+)
+
+sum(feasible)
+
+## PART TWO
+n_splits_at_any = function(chars) {
+  sum(sapply(
+    seq_len(min(length(chars), max_ptn)),
+    \(char_i) n_splits_at_char(chars, char_i)
+  ))
+}
+
+n_splits_at_char = function(chars, char_i) {
+  before = as.list(head(chars, char_i))
+  names(before) = paste0("V", seq_along(before))
+  before = c(before, size = char_i)
+  match_before = patterns[before, on=names(before), nomatch=NULL]
+  if (!nrow(match_before)) return(0L)
+  if (length(chars) == char_i) return(1L)
+  # NB: inefficiently keeps trying, e.g. if 'bg' fails,
+  #   we know 'bgg' will also fail. ignore for now...
+  return(sum(
+    match_before[, by=.I, .(amt = n_splits_at_any(tail(chars, -size)))]$amt
+  ))
+}
+
+total = mapply(
   function(ii, nc) {
     if (ii %% 50L == 0L) cat(sprintf("design=%d\n", ii))
     can_split_at_any(design_chars[ii, seq_len(nc)])
