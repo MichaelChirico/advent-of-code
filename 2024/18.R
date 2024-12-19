@@ -4,11 +4,16 @@ setnames(input, c('j', 'i'))
 input[, names(.SD) := lapply(.SD, `+`, 1L)]
 
 MAX = max(sapply(input, max))
-# TRUE: '#', FALSE: '.'
-walls = matrix(FALSE, MAX, MAX)
 
-N_BYTES=1024
-walls[input[1:N_BYTES, cbind(i, j)]] = TRUE
+build_walls = function(bytes) {
+  # TRUE: '#', FALSE: '.'
+  walls = matrix(FALSE, MAX, MAX)
+  
+  walls[input[1:bytes, cbind(i, j)]] = TRUE
+  walls
+}
+
+walls = build_walls(1024L)
 
 draw_path = function(path, truncate=TRUE) {
   path_grid = matrix(" ", MAX, MAX)
@@ -115,3 +120,35 @@ repeat {
     max_steps, uniqueN(paths$path_id), nrow(paths)
   ))
 }
+
+# I'm not totally above cheating to get my answer by guessing a few times :)
+
+for (N_BYTE in nrow(input):1) {
+  walls = build_walls(N_BYTE)
+
+  paths = data.table(row=1L, col=1L)
+  paths[, `:=`(path_id=1L, cum_cost=0L)]
+  max_steps = 1L
+  
+  cat(sprintf("%1$s\nCHECKING %2$d BYTES\n%1$s", strrep("*", 30L), N_BYTE))
+  repeat {
+    paths = paths |>
+      _[, by=path_id, next_paths(.SD, .BY$path_id)]
+    if (!nrow(paths)) break
+    paths = paths |>
+      _[, path_id := .GRP, by=.(path_id, sub_path_id)] |>
+      _[, sub_path_id := NULL] |>
+      remove_known_worse_paths()
+  
+    if (nrow(paths[end_tbl, on=.NATURAL, nomatch=NULL])) {
+      stop("Finished the maze!")
+    }
+    max_steps = max_steps + 1L
+    if (max_steps %% 50L == 0L) cat(sprintf(
+      "After %d steps, exploring %d paths with %d total steps\n",
+      max_steps, uniqueN(paths$path_id), nrow(paths)
+    ))
+  }
+}
+
+input[N_BYTE+1, writeLines(paste(c(j-1,i-1), collapse=","))]
