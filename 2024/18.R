@@ -63,18 +63,27 @@ next_paths = function(x, path_id) {
 }
 
 remove_known_worse_paths = function(paths) {
-  last_steps = paths[, .SD[.N], by=path_id]
+  # Look ahead to the cost of the next step to account
+  #   for any difference induced by a required turn that
+  #   hasn't yet been taken on one path as of this step.
+  paths_copy = copy(paths)
+  paths_copy[, next_cum_cost := shift(cum_cost, -1L), by=path_id]
+  last_two_steps = paths_copy[, tail(.SD, 2L), by=path_id]
+  last_two_steps[, ord := seq_len(.N), by=path_id]
   path_comparison = merge(
-    last_steps, paths,
+    last_two_steps, paths_copy,
     by=c("row", "col"), suffixes=c("_new", "_prev")
   ) |>
     _[
-      path_id_prev != path_id_new
+      path_id_prev != path_id_new,
+      if (.N == 2L) .SD,
+      keyby=.(path_id_new, path_id_prev)
     ]
   if (!nrow(path_comparison)) return(paths)
-  costlier_ids = path_comparison[,
+  costlier_ids = path_comparison[
+    ord == 1,
     unique(fifelse(
-      cum_cost_new > cum_cost_prev,
+      next_cum_cost_new > next_cum_cost_prev,
       path_id_new,
       path_id_prev
     ))
