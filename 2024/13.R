@@ -2,13 +2,15 @@ input = readLines('input-data/13')
 
 rules = split(input, cumsum(!nzchar(input)))
 
+all_integer = \(x) isTRUE(all.equal(round(x, 3L) %% 1, c(0,0), tolerance=1e-3))
+
 solve_rule = function(rule, offset=0) {
   rule = rule[nzchar(rule)]
   delta_x = as.integer(gsub(".*X[+]([0-9]+),.*", "\\1", rule[1:2]))
   delta_y = as.integer(gsub(".*Y[+]([0-9]+)$", "\\1", rule[1:2]))
-  prize_xy = offset + as.integer(unlist(strsplit(gsub("[^0-9,]", "", rule[3L]), ",")))
-  ans = round(solve(rbind(delta_x, delta_y), prize_xy), 3)
-  if (isTRUE(all.equal(ans %% 1, c(0,0), tolerance=1e-3))) {
+  prize_xy = as.integer(unlist(strsplit(gsub("[^0-9,]", "", rule[3L]), ",")))
+  ans = solve(rbind(delta_x, delta_y), offset + prize_xy)
+  if (all_integer(ans)) {
     sum(c(3, 1) * ans)
   } else {
     0
