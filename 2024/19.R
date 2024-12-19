@@ -71,8 +71,11 @@ repeat {
       pattern = c(outer(pattern, possible_blocks, paste0)),
       N = rep(N, each=length(possible_blocks))
     )] |>
-    _[, .(N = sum(N)), keyby=pattern]
-  possible_patterns = possible_patterns[nchar(pattern) <= max_dsn]
+    _[
+      nchar(pattern) <= max_dsn,
+      .(N = sum(N)),
+      keyby=pattern
+    ]
   # only calculate this once per pattern (while retaining duplicate rows if the same
   #   pattern can come from different sources)
   possible_patterns[, any_match := sapply(pattern, \(ptn) any(startsWith(designs_feasible, ptn)))]
@@ -82,7 +85,7 @@ repeat {
   possible_patterns = possible_patterns[(any_match)]
   if (!nrow(possible_patterns)) break
   cat(sprintf(
-    "%10.0f patterns under construction (%5d unique), size range %s. %5.0f matches found.\n",
+    "%20.0f patterns under construction (%5d unique), size range %s. %15.0f matches found.\n",
     sum(possible_patterns$N), nrow(possible_patterns),
     toString(range(nchar(possible_patterns$pattern))),
     total_matches
