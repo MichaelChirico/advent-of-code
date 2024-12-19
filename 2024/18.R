@@ -1,13 +1,14 @@
 library(data.table)
-input = fread('input-data/18', header=FALSE)
+input = fread('input-data/18-test', header=FALSE)
 setnames(input, c('j', 'i'))
 input[, names(.SD) := lapply(.SD, `+`, 1L)]
 
-MAX = 71L
+MAX = max(sapply(input, max))
 # TRUE: '#', FALSE: '.'
 walls = matrix(FALSE, MAX, MAX)
 
-walls[input[1:1024, cbind(i, j)]] = TRUE
+N_BYTES=12L
+walls[input[1:N_BYTES, cbind(i, j)]] = TRUE
 
 draw_path = function(path, truncate=TRUE) {
   path_grid = matrix(" ", MAX, MAX)
@@ -105,5 +106,3 @@ repeat {
     max_steps, uniqueN(paths$path_id), nrow(paths)
   ))
 }
-
-paths[paths[end_]]
