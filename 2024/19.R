@@ -35,8 +35,9 @@ can_split_at_char = function(chars, char_i) {
   if (length(chars) == char_i) return(TRUE)
   # NB: inefficiently keeps trying, e.g. if 'bg' fails,
   #   we know 'bgg' will also fail. ignore for now...
-  match_before[, by=.I, can_split_at_any(tail(chars, -size))]
-  return(FALSE)
+  return(any(
+    match_before[, by=.I, .(can = can_split_at_any(tail(chars, -size)))]$can
+  ))
 }
 
 feasible = mapply(
