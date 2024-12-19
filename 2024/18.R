@@ -28,7 +28,6 @@ draw_path = function(path, truncate=TRUE) {
   }
   if (truncate) {
     draw_range = apply(path, 2L, range)
-    draw_range[] = draw_range + c(-1L, 1L)
     draw = path_grid[draw_range[1L]:draw_range[2L], draw_range[3L]:draw_range[4L]]
   } else {
     draw = path_grid
@@ -83,12 +82,12 @@ remove_known_worse_paths = function(paths) {
 }
 
 end_idx = cbind(row=MAX, col=MAX)
+end_tbl = data.table(end_idx)
 
 paths = data.table(row=1L, col=1L)
 paths[, `:=`(path_id=1L, cum_cost=0L)]
 max_steps = 1L
 
-total_steps = nrow(paths)
 repeat {
   paths = paths |>
     _[, by=path_id, next_paths(.SD, .BY$path_id)] |>
@@ -96,8 +95,10 @@ repeat {
     _[, sub_path_id := NULL] |>
     remove_known_worse_paths()
 
-  if (nrow(paths) == total_steps) break
-  total_steps = nrow(paths)
+  if (nrow(DONE<-paths[end_tbl, on=.NATURAL, nomatch=NULL])) {
+    cat(sprintf("DONE! Took %d steps.\n", paths[DONE,on='path_id', max(cum_cost)]))
+    break
+  }
   max_steps = max_steps + 1L
   cat(sprintf(
     "After %d steps, exploring %d paths with %d total steps\n",
@@ -105,3 +106,4 @@ repeat {
   ))
 }
 
+paths[paths[end_]]
