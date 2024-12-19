@@ -1,5 +1,5 @@
 library(data.table)
-input = readLines('input-data/19-test')
+input = readLines('input-data/19')
 
 patterns_full = sort(unlist(strsplit(input[1L], ",\\s+")))
 patterns = setDT(tstrsplit(patterns_full, NULL))
@@ -41,6 +41,11 @@ can_split_at_char = function(chars, char_i) {
 }
 
 feasible = mapply(
-  \(ii, nc) can_split_at_any(design_chars[ii, seq_len(nc)]),
+  function(ii, nc) {
+    if (ii %% 50L == 0L) cat(sprintf("design=%d\n", ii))
+    can_split_at_any(design_chars[ii, seq_len(nc)])
+  },
   seq_along(designs_full), nchar(designs_full)
 )
+
+sum(feasible)
